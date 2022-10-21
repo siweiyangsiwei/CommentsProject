@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xavier.mapper.UserMapper">
+    <insert id="addNewUser" parameterType="User">
+        insert into tb_user(id,phone,nick_name) values (null,#{phone},#{nickName});
+    </insert>
+
+    <select id="getUserByPhone" resultType="User">
+        select id,phone,nick_name from tb_user where phone = #{pthone};
+    </select>
+</mapper>
