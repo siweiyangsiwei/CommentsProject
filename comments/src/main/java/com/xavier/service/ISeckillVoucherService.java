@@ -2,6 +2,7 @@ package com.xavier.service;
 
 import com.xavier.entity.SeckillVoucher;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.xavier.entity.Voucher;
 
 /**
  * <p>
@@ -12,5 +13,8 @@ import com.baomidou.mybatisplus.extension.service.IService;
  * @since 2022-01-04
  */
 public interface ISeckillVoucherService extends IService<SeckillVoucher> {
+    SeckillVoucher getSeckillVoucherById(Long voucherId);
+
+    boolean updateStock(SeckillVoucher seckillVoucher);
 
 }

@@ -2,6 +2,7 @@ package com.xavier.mapper;
 
 import com.xavier.entity.SeckillVoucher;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.xavier.entity.Voucher;
 
 /**
  * <p>
@@ -13,4 +14,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
  */
 public interface SeckillVoucherMapper extends BaseMapper<SeckillVoucher> {
 
+    SeckillVoucher getSeckillVoucherById(Long voucherId);
+
+    boolean updateStock(SeckillVoucher seckillVoucher);
 }
