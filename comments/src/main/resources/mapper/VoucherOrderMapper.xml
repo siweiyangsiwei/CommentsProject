@@ -7,4 +7,7 @@
     <insert id="addVoucherOrder">
         insert into tb_voucher_order(id,user_id,voucher_id) values(#{id},#{userId},#{voucherId})
     </insert>
+    <select id="countOrderByUserIdAndVoucherId" resultType="java.lang.Integer">
+        select count(*) from tb_voucher_order where user_id = #{userId} and voucher_id = #{voucherId}
+    </select>
 </mapper>
