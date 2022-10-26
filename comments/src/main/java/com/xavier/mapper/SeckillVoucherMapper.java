@@ -16,5 +16,5 @@ public interface SeckillVoucherMapper extends BaseMapper<SeckillVoucher> {
 
     SeckillVoucher getSeckillVoucherById(Long voucherId);
 
-    boolean updateStock(SeckillVoucher seckillVoucher);
+    boolean updateStock(Long voucherId);
 }

@@ -15,6 +15,6 @@ import com.xavier.entity.Voucher;
 public interface ISeckillVoucherService extends IService<SeckillVoucher> {
     SeckillVoucher getSeckillVoucherById(Long voucherId);
 
-    boolean updateStock(SeckillVoucher seckillVoucher);
+    boolean updateStock(Long voucherId);
 
 }

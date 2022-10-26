@@ -22,7 +22,7 @@ public class SimpleRedisLock implements ILock{
 
     static {
         unlockScript = new DefaultRedisScript<>();
-        unlockScript.setLocation(new ClassPathResource("unlock"));
+        unlockScript.setLocation(new ClassPathResource("unlock.lua"));
         unlockScript.setResultType(Long.class);
     }
 

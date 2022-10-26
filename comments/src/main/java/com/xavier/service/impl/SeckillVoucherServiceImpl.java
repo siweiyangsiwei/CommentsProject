@@ -28,7 +28,7 @@ public class SeckillVoucherServiceImpl extends ServiceImpl<SeckillVoucherMapper,
     }
 
     @Override
-    public boolean updateStock(SeckillVoucher seckillVoucher) {
-        return seckillVoucherMapper.updateStock(seckillVoucher);
+    public boolean updateStock(Long voucherId) {
+        return seckillVoucherMapper.updateStock(voucherId);
     }
 }
