@@ -9,8 +9,12 @@ import com.xavier.service.ISeckillVoucherService;
 import com.xavier.service.IVoucherOrderService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.xavier.utils.RedisIWorker;
+import com.xavier.utils.SimpleRedisLock;
 import com.xavier.utils.UserHolder;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.aop.framework.AopContext;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,9 +40,22 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     @Resource
     private RedisIWorker redisIWorker;
 
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
+
+    @Resource
+    private RedissonClient redissonClient;
+
+    /**
+     * 购买秒杀优惠券的实现方法
+     *
+     * @param voucherId 优惠券的Id
+     * @return 返回购买的结果Result
+     */
     @Override
     public Result seckillVoucher(Long voucherId) {
         Long userId = UserHolder.getUser().getId();
+//        SimpleRedisLock lock = new SimpleRedisLock("order:" + userId, stringRedisTemplate);
         // 1.查询优惠券
         SeckillVoucher seckillVoucher = seckillVoucherService.getSeckillVoucherById(voucherId);
         if (seckillVoucher == null) {
@@ -56,14 +73,33 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         if (seckillVoucher.getStock() < 1) {
             return Result.fail("库存不足!!!");
         }
-        synchronized (userId.toString().intern()) {
+        // 获取锁
+        RLock lock = redissonClient.getLock("lock:order:" + userId);
+        boolean isLock = lock.tryLock();
+        if (!isLock){
+            return Result.fail("不能重复下单!!");
+        }
+        /*if (!lock.tryLock(10L)) {
+            return Result.fail("一人只能下一单!!");
+        }*/
+        try {
             // 获取代理对象
             IVoucherOrderService proxy = (IVoucherOrderService) AopContext.currentProxy();
             // 7.优惠券下单
             return proxy.createVoucherOrder(seckillVoucher);
+        } finally {
+            // 释放锁
+            lock.unlock();
         }
+
     }
 
+    /**
+     * 下单优惠券的方法,是一人一单方法的抽离
+     *
+     * @param seckillVoucher 优惠券的信息
+     * @return 返回下单的Result
+     */
     @Transactional
     public Result createVoucherOrder(SeckillVoucher seckillVoucher) {
         Long userId = UserHolder.getUser().getId();
