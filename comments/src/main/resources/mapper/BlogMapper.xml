@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xavier.mapper.BlogMapper">
+
+    <insert id="saveBlog">
+        insert into tb_blog(shop_id,user_id,title,images,content,liked,comments)
+        values(#{shopId},#{userId},#{title},#{images},#{content},#{liked},#{comments})
+    </insert>
+    <update id="updateLiked">
+        update tb_blog set liked = liked + #{i} where id = #{id}
+    </update>
+    <select id="getBlogsByUserId" resultType="com.xavier.entity.Blog">
+        select * from tb_blog where user_id = #{userId} limit #{limitIndex},#{pageSize}
+    </select>
+    <select id="queryBolgOrderByHot" resultType="com.xavier.entity.Blog">
+        select * from tb_blog order by liked desc limit #{limitIndex},#{pageSize}
+    </select>
+    <select id="getBlogById" resultType="com.xavier.entity.Blog">
+        select * from tb_blog where id = #{id}
+    </select>
+</mapper>

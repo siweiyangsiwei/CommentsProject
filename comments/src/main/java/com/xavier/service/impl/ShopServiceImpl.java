@@ -23,14 +23,6 @@ import java.util.concurrent.TimeUnit;
 
 import static com.xavier.utils.RedisConstants.*;
 
-/**
- * <p>
- * 服务实现类
- * </p>
- *
- * @author 虎哥
- * @since 2021-12-22
- */
 @Service
 @Slf4j
 public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IShopService {
@@ -57,7 +49,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
                 CACHE_SHOP_KEY, id, Shop.class, id2 -> shopMapper.getShopById(id2),
                 CACHE_SHOP_TTL, TimeUnit.MINUTES);
 */
-        Shop shop = cacheClient.queryWithLogicalExpire(
+        Shop shop = cacheClient.queryWithMutex(
                 CACHE_SHOP_KEY, id, Shop.class, id2 -> shopMapper.getShopById(id2),
                 CACHE_SHOP_TTL, TimeUnit.MINUTES);
         if (shop == null) return Result.fail("店铺不存在");

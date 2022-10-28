@@ -28,14 +28,6 @@ import java.util.concurrent.TimeUnit;
 
 import static com.xavier.utils.RedisConstants.*;
 
-/**
- * <p>
- * 服务实现类
- * </p>
- *
- * @author 虎哥
- * @since 2021-12-22
- */
 @Service
 @Slf4j
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IUserService {
@@ -102,5 +94,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         stringRedisTemplate.opsForHash().putAll(LOGIN_USER_KEY + token,userDTOMap);
         stringRedisTemplate.expire(LOGIN_USER_KEY + token,LOGIN_USER_TTL,TimeUnit.MINUTES);
         return Result.ok(token);
+    }
+
+    /**
+     * 根据用户id查询用户信息
+     * @param userId 用户id
+     * @return 返回用户信息
+     */
+    @Override
+    public User getUserById(Long userId) {
+        return userMapper.getUserByUserId(userId);
     }
 }

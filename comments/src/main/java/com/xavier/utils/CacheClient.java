@@ -138,9 +138,9 @@ public class CacheClient {
                 return null;
             }
             // redis中的确不存在该数据,则查询数据库
-            R value = dbFallback.apply(id);
+            r = dbFallback.apply(id);
             //数据库中不存在,返回错误店铺不存在
-            if (value == null) {
+            if (r == null) {
                 // 解决缓存穿透问题,向redis添加空值信息
                 stringRedisTemplate.opsForValue().set(key, "", CACHE_NULL_TTL, TimeUnit.MINUTES);
                 return null;
@@ -148,7 +148,7 @@ public class CacheClient {
             //数据库中存在
 
             //店铺添加到redis中
-            this.set(key,value,time,unit);
+            this.set(key,r,time,unit);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         } finally {

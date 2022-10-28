@@ -10,4 +10,7 @@
     <select id="getUserByPhone" resultType="User">
         select id,phone,nick_name from tb_user where phone = #{pthone};
     </select>
+    <select id="getUserByUserId" resultType="com.xavier.entity.User">
+        select * from tb_user where id = #{userId}
+    </select>
 </mapper>

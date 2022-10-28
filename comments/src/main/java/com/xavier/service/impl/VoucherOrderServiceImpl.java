@@ -25,14 +25,6 @@ import java.util.concurrent.ExecutorService;
 import static com.xavier.utils.RedisConstants.SECKILL_ORDER_KEY;
 import static com.xavier.utils.RedisConstants.SECKILL_STOCK_KEY;
 
-/**
- * <p>
- * 服务实现类
- * </p>
- *
- * @author 虎哥
- * @since 2021-12-22
- */
 @Slf4j
 @Service
 public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, VoucherOrder> implements IVoucherOrderService {
