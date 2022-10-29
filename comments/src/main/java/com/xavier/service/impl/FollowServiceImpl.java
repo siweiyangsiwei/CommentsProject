@@ -103,4 +103,9 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
         }
         return Result.ok(users);
     }
+
+    @Override
+    public List<Long> getUserIdByFollowUserId(Long followUserId) {
+        return followMapper.getUserIdByFollowUserId(followUserId);
+    }
 }

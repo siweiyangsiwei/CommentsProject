@@ -10,6 +10,7 @@ import com.xavier.service.IBlogService;
 import com.xavier.service.IUserService;
 import com.xavier.utils.SystemConstants;
 import com.xavier.utils.UserHolder;
+import jdk.internal.org.objectweb.asm.tree.analysis.Value;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -56,5 +57,11 @@ public class BlogController {
     public Result queryBlogByUserId(@RequestParam(value = "id") Long userId,
                                     @RequestParam(value = "current",defaultValue = "1") Integer current){
         return blogService.queryBlogByUserId(userId,current);
+    }
+
+    @GetMapping("/of/follow")
+    public Result queryBlogByFans(@RequestParam(value = "lastId") Long lastId,
+                                  @RequestParam(value = "offect",defaultValue = "0") Integer offset){
+        return blogService.queryBlogOfFollow(lastId,offset);
     }
 }

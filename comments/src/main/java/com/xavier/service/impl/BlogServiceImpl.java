@@ -4,28 +4,30 @@ import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.BooleanUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.xavier.dto.Result;
+import com.xavier.dto.ScrollResult;
 import com.xavier.dto.UserDTO;
 import com.xavier.entity.Blog;
 import com.xavier.entity.User;
 import com.xavier.mapper.BlogMapper;
 import com.xavier.service.IBlogService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.xavier.service.IFollowService;
 import com.xavier.service.IUserService;
 import com.xavier.utils.CacheClient;
 import com.xavier.utils.SystemConstants;
 import com.xavier.utils.UserHolder;
 import io.lettuce.core.RedisClient;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.xavier.utils.RedisConstants.*;
+import static com.xavier.utils.SystemConstants.MAX_FOLLOW_PAGE_SIZE;
 import static com.xavier.utils.SystemConstants.MAX_PAGE_SIZE;
 
 @Service
@@ -35,6 +37,9 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
 
     @Resource
     private IUserService userService;
+
+    @Resource
+    private IFollowService followService;
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
@@ -54,6 +59,12 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         blog.setUserId(user.getId());
         // 保存探店博文
         blogMapper.saveBlog(blog);
+        // 将blog推送到所有粉丝的redis收件箱中
+        // 查询粉丝
+        List<Long> fansId = followService.getUserIdByFollowUserId(blog.getUserId());
+        for (Long id : fansId){
+            stringRedisTemplate.opsForZSet().add(FANS_FEED_KEY + id,blog.getId().toString(),System.currentTimeMillis());
+        }
         // 返回id
         return Result.ok(blog.getId());
     }
@@ -167,6 +178,56 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     public Result queryBlogByUserId(Long userId, Integer current) {
         List<Blog> blogs = blogMapper.getBlogsByUserId(userId, (current - 1) * MAX_PAGE_SIZE, MAX_PAGE_SIZE);
         return Result.ok(blogs);
+    }
+
+    /**
+     * 到当前用户的收件箱中获取已经关注的博主发过的blog
+     * @param lastId 使用zset保存的score值,用来做滚动分页
+     * @param offset 偏移量,一页显示的blog个数
+     * @return 返回blog的集合
+     */
+    @Override
+    public Result queryBlogOfFollow(Long lastId, Integer offset) {
+        Long userId = UserHolder.getUser().getId();
+        String key = FANS_FEED_KEY + userId;
+        // 获取收件箱中的数据
+        Set<ZSetOperations.TypedTuple<String>> typedTuples = stringRedisTemplate.opsForZSet().
+                reverseRangeByScoreWithScores(key, 0, lastId, offset, MAX_FOLLOW_PAGE_SIZE);
+        // 非空判断
+        if (typedTuples == null ||typedTuples.isEmpty()) return Result.ok(Collections.emptyList());
+        // 创建一个集合用于保存所有的blog的id
+        List<Long> ids = new ArrayList<>(typedTuples.size());
+        // 用户保存最后一个数据的分数
+        long minTime = 0;
+        // 记录最后一个元素有多少个是同一个分数的,用户以后的offset赋值
+        int os = 1;
+        for (ZSetOperations.TypedTuple<String> typedTuple : typedTuples) {
+            // 获取id
+            ids.add(Long.valueOf(typedTuple.getValue()));
+            long time = typedTuple.getScore().longValue();
+            if (time == minTime){
+                os++;
+            }else{
+                // 获取分数
+                minTime = time;
+                os = 1;
+            }
+        }
+        // 用于保存收件箱中的所有blog
+        List<Blog> blogs = new ArrayList<>(ids.size());
+
+        // 根据id查询blog并保存中blogs中
+        for (Long id : ids) {
+            Blog blog = blogMapper.getBlogById(id);
+            queryUserByBlog(blog);
+            isBlogLiked(blog);
+            blogs.add(blog);
+        }
+        ScrollResult result = new ScrollResult();
+        result.setList(blogs);
+        result.setMinTime(minTime);
+        result.setOffset(os);
+        return Result.ok(result);
     }
 
     /**

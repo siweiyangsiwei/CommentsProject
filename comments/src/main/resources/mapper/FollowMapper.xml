@@ -13,4 +13,7 @@
     <select id="getFollow" resultType="com.xavier.entity.Follow">
         select * from tb_follow where user_id = #{userId} and follow_user_id = #{id}
     </select>
+    <select id="getUserIdByFollowUserId" resultType="java.lang.Long">
+        select user_id from tb_follow where follow_user_id = #{followUserId}
+    </select>
 </mapper>
