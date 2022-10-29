@@ -11,8 +11,10 @@ import com.xavier.mapper.BlogMapper;
 import com.xavier.service.IBlogService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.xavier.service.IUserService;
+import com.xavier.utils.CacheClient;
 import com.xavier.utils.SystemConstants;
 import com.xavier.utils.UserHolder;
+import io.lettuce.core.RedisClient;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -20,9 +22,11 @@ import javax.annotation.Resource;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import static com.xavier.utils.RedisConstants.BLOG_LIKED_KEY;
+import static com.xavier.utils.RedisConstants.*;
+import static com.xavier.utils.SystemConstants.MAX_PAGE_SIZE;
 
 @Service
 public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IBlogService {
@@ -34,6 +38,9 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
+
+    @Resource
+    private CacheClient cacheClient;
 
     /**
      * 将上传的评论文件保存到数据库中
@@ -62,7 +69,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         UserDTO user = UserHolder.getUser();
         Long userId = user.getId();
         // 根据用户查询
-        List<Blog> records = blogMapper.getBlogsByUserId(userId,(current - 1)*SystemConstants.MAX_PAGE_SIZE,SystemConstants.MAX_PAGE_SIZE);
+        List<Blog> records = blogMapper.getBlogsByUserId(userId,(current - 1)* MAX_PAGE_SIZE, MAX_PAGE_SIZE);
         return Result.ok(records);
     }
 
@@ -74,11 +81,12 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     @Override
     public Result queryHotBlog(Integer current) {
         // 根据用户查询
-        List<Blog> records = blogMapper.queryBolgOrderByHot((current - 1)*SystemConstants.MAX_PAGE_SIZE,SystemConstants.MAX_PAGE_SIZE);
+        List<Blog> records = blogMapper.queryBolgOrderByHot((current - 1)*MAX_PAGE_SIZE,MAX_PAGE_SIZE);
+
         // 查询用户
         records.forEach(blog -> {
-            this.queryUserByBlog(blog);
-            this.isBlogLiked(blog);
+            this.queryUserByBlog((Blog) blog);
+            this.isBlogLiked((Blog) blog);
         });
         return Result.ok(records);
     }
@@ -153,6 +161,12 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             users.add(userDTO);
         }
         return Result.ok(users);
+    }
+
+    @Override
+    public Result queryBlogByUserId(Long userId, Integer current) {
+        List<Blog> blogs = blogMapper.getBlogsByUserId(userId, (current - 1) * MAX_PAGE_SIZE, MAX_PAGE_SIZE);
+        return Result.ok(blogs);
     }
 
     /**

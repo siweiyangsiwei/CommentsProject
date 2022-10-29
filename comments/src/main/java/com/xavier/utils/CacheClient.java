@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
@@ -131,6 +132,64 @@ public class CacheClient {
             if (StrUtil.isNotBlank(valueCache)) {
                 // 存在后将json数据转成shop对象
                 r = JSONUtil.toBean(valueCache, type);
+                return r;
+            }
+            // 判断命中的是否为空值,空值则直接返回fail了(即为空值缓存)
+            if (valueCache != null) {
+                return null;
+            }
+            // redis中的确不存在该数据,则查询数据库
+            r = dbFallback.apply(id);
+            //数据库中不存在,返回错误店铺不存在
+            if (r == null) {
+                // 解决缓存穿透问题,向redis添加空值信息
+                stringRedisTemplate.opsForValue().set(key, "", CACHE_NULL_TTL, TimeUnit.MINUTES);
+                return null;
+            }
+            //数据库中存在
+
+            //店铺添加到redis中
+            this.set(key,r,time,unit);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        } finally {
+            // 释放锁
+            unlock(lock);
+        }
+        return r;
+    }
+
+    public <R,ID> List<R> queryListWithMutex(String keyPrefix, ID id, Class<R> type, Function<ID,List<R>> dbFallback, Long time, TimeUnit unit) {
+        String key = keyPrefix + id;
+        String lock = LOCK_SHOP_KEY + id;
+        List<R> r = null;
+        try {
+            // 请求发送过来,需要获取店铺信息,我们先去查询redis缓存
+            String valueCache = stringRedisTemplate.opsForValue().get(key);
+            //redis中存在,直接返回
+            if (StrUtil.isNotBlank(valueCache)) {
+                // 存在后将json数据转成shop对象
+                r = JSONUtil.toList(valueCache,type);
+                return r;
+            }
+            // 判断命中的是否为空值,空值则直接返回fail了(即为空值缓存)
+            if (valueCache != null) {
+                return null;
+            }
+            // redis中不存在
+            // 获取锁
+            // 获取不到锁,则递归获取数据,在这里想当与等待
+            if (!tryLock(lock)) {
+                Thread.sleep(50);
+                return queryListWithMutex(keyPrefix,id,type,dbFallback,time,unit);
+            }
+            // 获取到锁
+            // 进行一个DoubleCheck,以防其他的线程修改完了我们再获取
+            valueCache = stringRedisTemplate.opsForValue().get(key);
+            //redis中存在,直接返回
+            if (StrUtil.isNotBlank(valueCache)) {
+                // 存在后将json数据转成shop对象
+                r = JSONUtil.toList(valueCache, type);
                 return r;
             }
             // 判断命中的是否为空值,空值则直接返回fail了(即为空值缓存)

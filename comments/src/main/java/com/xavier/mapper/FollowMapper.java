@@ -5,4 +5,9 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 
 public interface FollowMapper extends BaseMapper<Follow> {
 
+    void addFollow(Follow follow);
+
+    void removeFollow(Follow follow);
+
+    Follow getFollow(Long userId, Long id);
 }

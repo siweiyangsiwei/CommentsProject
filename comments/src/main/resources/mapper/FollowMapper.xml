@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xavier.mapper.FollowMapper">
+
+    <insert id="addFollow">
+        insert into tb_follow(user_id,follow_user_id) values(#{userId},#{followUserId})
+    </insert>
+    <delete id="removeFollow">
+        delete from tb_follow where user_id = #{userId} and follow_user_id = #{followUserId}
+    </delete>
+    <select id="getFollow" resultType="com.xavier.entity.Follow">
+        select * from tb_follow where user_id = #{userId} and follow_user_id = #{id}
+    </select>
+</mapper>
