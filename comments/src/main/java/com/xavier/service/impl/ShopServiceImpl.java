@@ -13,15 +13,25 @@ import com.xavier.service.IShopService;
 import com.xavier.utils.CacheClient;
 import com.xavier.utils.RedisData;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.geo.Distance;
+import org.springframework.data.geo.GeoResult;
+import org.springframework.data.geo.GeoResults;
+import org.springframework.data.redis.connection.RedisGeoCommands;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.domain.geo.GeoReference;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static com.xavier.utils.RedisConstants.*;
+import static com.xavier.utils.SystemConstants.MAX_GEO_DISTANCE;
+import static com.xavier.utils.SystemConstants.MAX_PAGE_SIZE;
 
 @Service
 @Slf4j
@@ -233,6 +243,51 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
         stringRedisTemplate.delete(CACHE_SHOP_KEY + shop.getId());
 
         return Result.ok("更新店铺数据成功!!");
+    }
+
+    /**
+     * 获取店铺信息,有可能需要将店铺根据距离排序
+     * @param typeId 店铺类型
+     * @param current 当前页码
+     * @param x 用户所处经度
+     * @param y 用户所处纬度
+     * @return 店铺列表
+     */
+    @Override
+    public Result getShopByTypeOrderByDist(Integer typeId, Integer current, Double x, Double y) {
+        // 计算分页查询的开始坐标
+        int startIndex = (current - 1) * MAX_PAGE_SIZE;
+        // 不需要根据经纬度排序
+        if(x == null || y == null){
+            List<Shop> shops =  shopMapper.getShopByTypeId(typeId,startIndex,MAX_PAGE_SIZE);
+            return Result.ok(shops);
+        }
+        // 计算分页查询结束坐标
+        int endIndex = current * MAX_PAGE_SIZE;
+        // redis中进行查询的key
+        String key = SHOP_GEO_KEY + typeId;
+        // 查询方圆5公里的店铺信息以及对应的距离distance
+        GeoResults<RedisGeoCommands.GeoLocation<String>> results = stringRedisTemplate.opsForGeo().search(
+                key,
+                GeoReference.fromCoordinate(x, y),
+                new Distance(MAX_GEO_DISTANCE),
+                RedisGeoCommands.GeoSearchCommandArgs.newGeoSearchArgs().includeDistance().limit(endIndex));
+        // 空值判断
+        if (results == null) return Result.ok(Collections.emptyList());
+        // 获取信息内容
+        List<GeoResult<RedisGeoCommands.GeoLocation<String>>> content = results.getContent();
+        // 用于保存店铺信息
+        List<Shop> shops = new ArrayList<>();
+        // 遍历根据获取到的店铺id查询店铺信息,以及将distance填入shop中
+        content.stream().skip(startIndex).forEach(result -> {
+            Long id = Long.valueOf(result.getContent().getName());
+            Double distance = result.getDistance().getValue();
+            Shop shop = shopMapper.getShopById(id);
+            shop.setDistance(distance);
+            shops.add(shop);
+        });
+        // 返回
+        return Result.ok(shops);
     }
 
     /**

@@ -15,14 +15,19 @@ import com.xavier.mapper.UserMapper;
 import com.xavier.service.IUserService;
 import com.xavier.utils.RegexUtils;
 import com.xavier.utils.SystemConstants;
+import com.xavier.utils.UserHolder;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.connection.BitFieldSubCommands;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.scheduling.quartz.LocalDataSourceJobStore;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpSession;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -105,4 +110,64 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     public User getUserById(Long userId) {
         return userMapper.getUserByUserId(userId);
     }
+
+    /**
+     * 用户签到的函数
+     * @return 返回签到结果
+     */
+    @Override
+    public Result userSign() {
+        // 获取当前用户
+        Long userId = UserHolder.getUser().getId();
+        // 获取当前时间
+        LocalDateTime now = LocalDateTime.now();
+        String format = now.format(DateTimeFormatter.ofPattern("yyyy:MM"));
+        // 保存在redis中的key
+        String key = USER_SIGN_KEY + userId + ":" + format;
+        // 获取当前在天在这个月的天数
+        int dayOfMonth = now.getDayOfMonth();
+        // 保存到redis中
+        stringRedisTemplate.opsForValue().setBit(key,dayOfMonth - 1,true);
+        return Result.ok();
+    }
+
+    /**
+     * 用于计算用户本月到今天为止的连续签到的天数
+     * @return 返回连续签到的天数
+     */
+    @Override
+    public Result userSignCount() {
+        // 获取当前用户
+        Long userId = UserHolder.getUser().getId();
+        // 获取当前时间
+        LocalDateTime now = LocalDateTime.now();
+        String format = now.format(DateTimeFormatter.ofPattern("yyyy:MM"));
+        // 保存在redis中的key
+        String key = USER_SIGN_KEY + userId + ":" + format;
+        // 获取当前在天在这个月的天数
+        int dayOfMonth = now.getDayOfMonth();
+        // 获取redis中存储的bitMap的这个串
+        List<Long> longs = stringRedisTemplate.opsForValue().bitField(key,
+                BitFieldSubCommands.create().
+                        get(BitFieldSubCommands.BitFieldType.unsigned(dayOfMonth)).valueAt(0));
+        // 空值判断
+        if (longs == null || longs.isEmpty()) return Result.ok(0);
+        Long num = longs.get(0);
+        if (num == null || num == 0) return Result.ok(0);
+        // 计数器
+        int count = 0;
+        // 循环遍历并右移,判断是否为1,为1则是签到
+        while (true){
+            if ((num & 1) == 0){
+                break;
+            }else {
+                count++;
+            }
+            // 右移并赋值
+            num >>>= 1;
+        }
+        // 返回
+        return Result.ok(count);
+    }
+
 }

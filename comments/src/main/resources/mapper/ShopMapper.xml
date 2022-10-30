@@ -12,4 +12,7 @@
     <select id="getShopById" resultType="com.xavier.entity.Shop">
         select * from tb_shop where id = #{id}
     </select>
+    <select id="getShopByTypeId" resultType="com.xavier.entity.Shop">
+        select * from tb_shop where type_id = #{typeId} limit #{startIndex},#{pageSize}
+    </select>
 </mapper>
